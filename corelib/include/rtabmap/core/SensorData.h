@@ -107,6 +107,17 @@ public:
 			double stamp = 0.0,
 			const cv::Mat & userData = cv::Mat());
 
+	// Multi-cameras RGB-D constructor + laser scan + motion detector mask
+	SensorData(
+			const LaserScan & laserScan,
+			const cv::Mat & rgb,
+			const cv::Mat & depth,
+			const cv::Mat & mask,
+			const std::vector<CameraModel> & cameraModels,
+			int id = 0,
+			double stamp = 0.0,
+			const cv::Mat & userData = cv::Mat());
+
 	// Stereo constructor
 	SensorData(
 			const cv::Mat & left,
@@ -181,6 +192,7 @@ public:
 	const LaserScan & laserScanCompressed() const {return _laserScanCompressed;}
 
 	const cv::Mat & imageRaw() const {return _imageRaw;}
+	const cv::Mat & mask() const {return _mask;}
 	const cv::Mat & depthOrRightRaw() const {return _depthOrRightRaw;}
 	const LaserScan & laserScanRaw() const {return _laserScanRaw;}
 
@@ -190,7 +202,9 @@ public:
 	 * @param clearPreviousData, clear previous raw and compressed images before setting the new ones.
 	 */
 	void setRGBDImage(const cv::Mat & rgb, const cv::Mat & depth, const CameraModel & model, bool clearPreviousData = true);
+	void setRGBDImage(const cv::Mat & rgb, const cv::Mat & depth, const cv::Mat & mask, const CameraModel & model, bool clearPreviousData = true);
 	void setRGBDImage(const cv::Mat & rgb, const cv::Mat & depth, const std::vector<CameraModel> & models, bool clearPreviousData = true);
+	void setRGBDImage(const cv::Mat & rgb, const cv::Mat & depth, const cv::Mat & mask, const std::vector<CameraModel> & models, bool clearPreviousData = true);
 	void setStereoImage(const cv::Mat & left, const cv::Mat & right, const StereoCameraModel & stereoCameraModel, bool clearPreviousData = true);
 	void setStereoImage(const cv::Mat & left, const cv::Mat & right, const std::vector<StereoCameraModel> & stereoCameraModels, bool clearPreviousData = true);
 
@@ -324,6 +338,7 @@ private:
 
 	cv::Mat _imageRaw;          // CV_8UC1 or CV_8UC3
 	cv::Mat _depthOrRightRaw;   // depth CV_16UC1 or CV_32FC1, right image CV_8UC1
+	cv::Mat _mask = cv::Mat();
 	LaserScan _laserScanRaw;
 
 	std::vector<CameraModel> _cameraModels;

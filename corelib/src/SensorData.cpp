@@ -141,6 +141,25 @@ SensorData::SensorData(
 	setUserData(userData);
 }
 
+// Multi-cameras RGB-D constructor + laser scan + motion detector mask
+SensorData::SensorData(
+		const LaserScan & laserScan,
+		const cv::Mat & rgb,
+		const cv::Mat & depth,
+		const cv::Mat & mask,
+		const std::vector<CameraModel> & cameraModels,
+		int id,
+		double stamp,
+		const cv::Mat & userData) :
+		_id(id),
+		_stamp(stamp),
+		_cellSize(0.0f)
+{
+	setRGBDImage(rgb, depth, mask, cameraModels);
+	setLaserScan(laserScan);
+	setUserData(userData);
+}
+
 // Stereo constructor
 SensorData::SensorData(
 		const cv::Mat & left,
@@ -237,6 +256,17 @@ void SensorData::setRGBDImage(
 void SensorData::setRGBDImage(
 		const cv::Mat & rgb,
 		const cv::Mat & depth,
+		const cv::Mat & mask,
+		const CameraModel & model,
+		bool clearPreviousData)
+{
+	std::vector<CameraModel> models;
+	models.push_back(model);
+	setRGBDImage(rgb, depth, mask, models, clearPreviousData);
+}
+void SensorData::setRGBDImage(
+		const cv::Mat & rgb,
+		const cv::Mat & depth,
 		const std::vector<CameraModel> & models,
 		bool clearPreviousData)
 {
@@ -300,6 +330,16 @@ void SensorData::setRGBDImage(
 		_depthOrRightRaw = cv::Mat();
 		_depthOrRightCompressed = cv::Mat();
 	}
+}
+void SensorData::setRGBDImage(
+		const cv::Mat & rgb,
+		const cv::Mat & depth,
+		const cv::Mat & mask,
+		const std::vector<CameraModel> & models,
+		bool clearPreviousData)
+{
+	setRGBDImage(rgb, depth, models, clearPreviousData);
+	_mask = mask;
 }
 void SensorData::setStereoImage(
 		const cv::Mat & left,
