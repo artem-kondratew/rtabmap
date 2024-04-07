@@ -64,6 +64,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <opencv2/imgproc/types_c.h>
 #include <rtabmap/core/LocalGridMaker.h>
 
+#define USE_MOTION_DETECTOR true
+
 namespace rtabmap {
 
 const int Memory::kIdStart = 0;
@@ -824,9 +826,10 @@ void Memory::preUpdate()
 
 bool Memory::update(
 		const SensorData & data,
-		Statistics * stats)
+		Statistics * stats,
+		VisualizerMsg * vis_msg)
 {
-	return update(data, Transform(), cv::Mat(), std::vector<float>(), stats);
+	return update(data, Transform(), cv::Mat(), std::vector<float>(), stats, vis_msg);
 }
 
 bool Memory::update(
@@ -834,7 +837,8 @@ bool Memory::update(
 		const Transform & pose,
 		const cv::Mat & covariance,
 		const std::vector<float> & velocity,
-		Statistics * stats)
+		Statistics * stats,
+		VisualizerMsg * vis_msg)
 {
 	UDEBUG("");
 	UTimer timer;
@@ -854,7 +858,7 @@ bool Memory::update(
 	//============================================================
 	// Create a signature with the image received.
 	//============================================================
-	Signature * signature = this->createSignature(data, pose, stats);
+	Signature * signature = this->createSignature(data, pose, stats, vis_msg);
 	if (signature == 0)
 	{
 		UERROR("Failed to create a signature...");
@@ -4466,7 +4470,7 @@ private:
 	VWDictionary * _vwp;
 };
 
-Signature * Memory::createSignature(const SensorData & inputData, const Transform & pose, Statistics * stats)
+Signature * Memory::createSignature(const SensorData & inputData, const Transform & pose, Statistics * stats, VisualizerMsg * vis_msg)
 {
 	UDEBUG("");
 	SensorData data = inputData;
@@ -4504,6 +4508,10 @@ Signature * Memory::createSignature(const SensorData & inputData, const Transfor
 	UASSERT(_feature2D != 0);
 
 	PreUpdateThread preUpdateThread(_vwd);
+
+	if (vis_msg != nullptr) {
+		vis_msg->setMask(inputData.mask());
+	}
 
 	UTimer timer;
 	timer.start();
@@ -4543,6 +4551,7 @@ Signature * Memory::createSignature(const SensorData & inputData, const Transfor
 	}
 
 	bool imagesRectified = _imagesAlreadyRectified;
+#if not USE_MOTION_DETECTOR
 	// Stereo must be always rectified because of the stereo correspondence approach
 	if(!imagesRectified && !data.imageRaw().empty() && !(_rectifyOnlyFeatures && data.rightRaw().empty()))
 	{
@@ -4655,6 +4664,7 @@ Signature * Memory::createSignature(const SensorData & inputData, const Transfor
 		if(stats) stats->addStatistic(Statistics::kTimingMemRectification(), t*1000.0f);
 		UDEBUG("time rectification = %fs", t);
 	}
+#endif
 
 	int treeSize= int(_workingMem.size() + _stMem.size());
 	int meanWordsPerLocation = _feature2D->getMaxFeatures()>0?_feature2D->getMaxFeatures():0;
@@ -4669,6 +4679,7 @@ Signature * Memory::createSignature(const SensorData & inputData, const Transfor
 		preUpdateThread.start();
 	}
 
+#if not USE_MOTION_DETECTOR
 	if(_rotateImagesUpsideUp && !data.imageRaw().empty() && !data.cameraModels().empty())
 	{
 		// Currently stereo is not supported
@@ -4758,6 +4769,7 @@ Signature * Memory::createSignature(const SensorData & inputData, const Transfor
 			warned = true;
 		}
 	}
+#endif
 
 	unsigned int preDecimation = 1;
 	std::vector<cv::Point3f> keypoints3D;
@@ -4767,15 +4779,19 @@ Signature * Memory::createSignature(const SensorData & inputData, const Transfor
 	if(!_useOdometryFeatures ||
 		data.keypoints().empty() ||
 		(int)data.keypoints().size() != data.descriptors().rows ||
-		(_feature2D->getType() == Feature2D::kFeatureOrbOctree && data.descriptors().empty()))
+		(_feature2D->getType() == Feature2D::kFeatureOrbOctree && data.descriptors().empty())) // TRUE
 	{
-		if(_feature2D->getMaxFeatures() >= 0 && !data.imageRaw().empty() && !isIntermediateNode)
+		if(_feature2D->getMaxFeatures() >= 0 && !data.imageRaw().empty() && !isIntermediateNode) // TRUE
 		{
 			decimatedData = data;
+#if not USE_MOTION_DETECTOR
 			if(_imagePreDecimation > 1)
 			{
+				cv::imshow("decimation", inputData.imageRaw());
+				cv::waitKey(20);
 				preDecimation = _imagePreDecimation;
 				int decimationDepth = _imagePreDecimation;
+				int decimationMask = _imagePreDecimation;
 				if(	!data.cameraModels().empty() &&
 					data.cameraModels()[0].imageHeight()>0 &&
 					data.cameraModels()[0].imageWidth()>0)
@@ -4819,6 +4835,7 @@ Signature * Memory::createSignature(const SensorData & inputData, const Transfor
 							stereoCameraModels);
 				}
 			}
+#endif
 
 			UINFO("Extract features");
 			cv::Mat imageMono;
@@ -4832,11 +4849,11 @@ Signature * Memory::createSignature(const SensorData & inputData, const Transfor
 			}
 
 			cv::Mat depthMask;
-			if(imagesRectified && !decimatedData.depthRaw().empty() && _depthAsMask)
+			if(imagesRectified && !decimatedData.depthRaw().empty() && _depthAsMask) // TRUE
 			{
 				if(imageMono.rows % decimatedData.depthRaw().rows == 0 &&
 					imageMono.cols % decimatedData.depthRaw().cols == 0 &&
-					imageMono.rows/decimatedData.depthRaw().rows == imageMono.cols/decimatedData.depthRaw().cols)
+					imageMono.rows/decimatedData.depthRaw().rows == imageMono.cols/decimatedData.depthRaw().cols) // TRUE
 				{
 					depthMask = util2d::interpolate(decimatedData.depthRaw(), imageMono.rows/decimatedData.depthRaw().rows, 0.1f);
 				}
@@ -4851,7 +4868,7 @@ Signature * Memory::createSignature(const SensorData & inputData, const Transfor
 			}
 
 			bool useProvided3dPoints = false;
-			if(_useOdometryFeatures && !data.keypoints().empty())
+			if(_useOdometryFeatures && !data.keypoints().empty()) // FALSE
 			{
 				UDEBUG("Using provided keypoints (%d)", (int)data.keypoints().size());
 				keypoints = data.keypoints();
@@ -4881,7 +4898,7 @@ Signature * Memory::createSignature(const SensorData & inputData, const Transfor
                     }
                 }
 			}
-			else
+			else // TRUE
 			{
 				int oldMaxFeatures = _feature2D->getMaxFeatures();
 				UDEBUG("rawDescriptorsKept=%d, pose=%d, maxFeatures=%d, visMaxFeatures=%d", _rawDescriptorsKept?1:0, pose.isNull()?0:1, _feature2D->getMaxFeatures(), _visMaxFeatures);
@@ -4894,9 +4911,18 @@ Signature * Memory::createSignature(const SensorData & inputData, const Transfor
 					_feature2D->parseParameters(tmpMaxFeatureParameter);
 				}
 
+				std::vector<cv::KeyPoint> dynamicKeypoints;
 				keypoints = _feature2D->generateKeypoints(
 						imageMono,
-						depthMask);
+						depthMask,
+						inputData.mask(),
+						dynamicKeypoints);
+
+				if (vis_msg != nullptr) {
+					vis_msg->setImage(imageMono);
+					vis_msg->setStaticKeypoints(keypoints);
+					vis_msg->setDynamicKeypoints(dynamicKeypoints);
+				}
 
 				if(tmpMaxFeatureParameter.size())
 				{

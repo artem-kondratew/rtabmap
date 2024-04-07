@@ -44,6 +44,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <opencv2/features2d/features2d.hpp>
 #include <pcl/pcl_config.h>
 
+#include "rtabmap/core/VisualizerMsg.h"
+
 namespace rtabmap {
 
 class Signature;
@@ -74,12 +76,14 @@ public:
 	virtual void parseParameters(const ParametersMap & parameters);
 	virtual const ParametersMap & getParameters() const {return parameters_;}
 	bool update(const SensorData & data,
-			Statistics * stats = 0);
+			Statistics * stats = 0,
+			VisualizerMsg * vis_msg = nullptr);
 	bool update(const SensorData & data,
 			const Transform & pose,
 			const cv::Mat & covariance,
 			const std::vector<float> & velocity = std::vector<float>(), // vx,vy,vz,vroll,vpitch,vyaw
-			Statistics * stats = 0);
+			Statistics * stats = 0,
+			VisualizerMsg * vis_msg = nullptr);
 	bool init(const std::string & dbUrl,
 			bool dbOverwritten = false,
 			const ParametersMap & parameters = ParametersMap(),
@@ -281,7 +285,8 @@ private:
 	Signature * createSignature(
 			const SensorData & data,
 			const Transform & pose,
-			Statistics * stats = 0);
+			Statistics * stats = 0,
+			VisualizerMsg * vis_msg = nullptr);
 
 	//keypoint stuff
 	void disableWordsRef(int signatureId);
