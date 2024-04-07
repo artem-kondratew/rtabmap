@@ -1165,7 +1165,8 @@ bool Rtabmap::process(
 		Transform odomPose,
 		const cv::Mat & odomCovariance,
 		const std::vector<float> & odomVelocity,
-		const std::map<std::string, float> & externalStats)
+		const std::map<std::string, float> & externalStats,
+		VisualizerMsg * vis_msg)
 {
 	UDEBUG("");
 
@@ -1406,14 +1407,14 @@ bool Rtabmap::process(
 	ULOGGER_INFO("Updating memory...");
 	if(_rgbdSlamMode)
 	{
-		if(!_memory->update(data, odomPose, odomCovariance, odomVelocity, &statistics_))
+		if(!_memory->update(data, odomPose, odomCovariance, odomVelocity, &statistics_, vis_msg))
 		{
 			return false;
 		}
 	}
 	else
 	{
-		if(!_memory->update(data, Transform(), cv::Mat(), std::vector<float>(), &statistics_))
+		if(!_memory->update(data, Transform(), cv::Mat(), std::vector<float>(), &statistics_, vis_msg))
 		{
 			return false;
 		}

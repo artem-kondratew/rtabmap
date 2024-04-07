@@ -35,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "rtabmap/core/Statistics.h"
 #include "rtabmap/core/Link.h"
 #include "rtabmap/core/ProgressState.h"
+#include "rtabmap/core/VisualizerMsg.h"
 
 #include <opencv2/core/core.hpp>
 #include <list>
@@ -73,7 +74,8 @@ public:
 			Transform odomPose,
 			const cv::Mat & odomCovariance = cv::Mat::eye(6,6,CV_64FC1),
 			const std::vector<float> & odomVelocity = std::vector<float>(),
-			const std::map<std::string, float> & externalStats = std::map<std::string, float>());
+			const std::map<std::string, float> & externalStats = std::map<std::string, float>(),
+			VisualizerMsg * vis_msg = nullptr);
 	// for convenience
 	bool process(
 			const SensorData & data,
