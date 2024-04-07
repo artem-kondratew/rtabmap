@@ -212,7 +212,9 @@ public:
 
 	std::vector<cv::KeyPoint> generateKeypoints(
 			const cv::Mat & image,
-			const cv::Mat & mask = cv::Mat());
+			const cv::Mat & mask = cv::Mat(),
+			const cv::Mat & motionDetectorMask = cv::Mat(),
+			std::vector<cv::KeyPoint> & rejectedKeypoints = _defaultRejectedPoints);
 	cv::Mat generateDescriptors(
 			const cv::Mat & image,
 			std::vector<cv::KeyPoint> & keypoints) const;
@@ -244,6 +246,7 @@ private:
 	int gridCols_;
 	// Stereo stuff
 	Stereo * _stereo;
+	inline static std::vector<cv::KeyPoint> _defaultRejectedPoints;
 };
 
 //SURF

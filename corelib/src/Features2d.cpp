@@ -667,7 +667,11 @@ Feature2D * Feature2D::create(Feature2D::Type type, const ParametersMap & parame
 	return feature2D;
 }
 
-std::vector<cv::KeyPoint> Feature2D::generateKeypoints(const cv::Mat & image, const cv::Mat & maskIn)
+std::vector<cv::KeyPoint> Feature2D::generateKeypoints(
+	const cv::Mat & image,
+	const cv::Mat & maskIn,
+	const cv::Mat & motionDetectorMask,
+	std::vector<cv::KeyPoint> & rejectedKeypoints)
 {
 	UASSERT(!image.empty());
 	UASSERT(image.type() == CV_8UC1);
@@ -734,6 +738,29 @@ std::vector<cv::KeyPoint> Feature2D::generateKeypoints(const cv::Mat & image, co
 			cv::Rect roi(globalRoi.x + j*colSize, globalRoi.y + i*rowSize, colSize, rowSize);
 			std::vector<cv::KeyPoint> subKeypoints;
 			subKeypoints = this->generateKeypointsImpl(image, roi, mask);
+
+			cv::Mat imageRoi;
+			cv::Mat motionDetectorMaskRoi;
+			if (!motionDetectorMask.empty())
+			{
+				imageRoi = cv::Mat(image, roi);
+				motionDetectorMaskRoi = cv::Mat(motionDetectorMask, roi);
+				std::vector<cv::KeyPoint> staticKeypoints;
+				for (std::vector<cv::KeyPoint>::iterator iter=subKeypoints.begin(); iter!=subKeypoints.end(); ++iter)
+				{
+					int x = static_cast<int>(iter->pt.x);
+					int y = static_cast<int>(iter->pt.y);
+					uint8_t value = motionDetectorMaskRoi.at<uchar>(y, x);
+					if (value == 0) {
+						staticKeypoints.push_back(*iter);
+					}
+					else {
+						rejectedKeypoints.push_back(*iter);
+					}
+				}
+				subKeypoints = staticKeypoints;
+			}
+
 			if (this->getType() != Feature2D::Type::kFeaturePyDetector)
 			{
 				limitKeypoints(subKeypoints, maxFeatures);
